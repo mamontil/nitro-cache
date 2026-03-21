@@ -1,0 +1,17 @@
+{
+  "name": "mamontil/nitro-cache",
+  "description": "Blazing fast In-Memory Cache for PHP via Rust FFI with LRU and TTL support",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "classmap": ["NitroCache.php"]
+  },
+  "require": {
+    "php": ">=8.1",
+    "ext-ffi": "*"
+  },
+  "suggest": {
+    "ext-igbinary": "For faster and smaller serialization than native JSON",
+    "ext-msgpack": "Efficient binary serialization support"
+  }
+}

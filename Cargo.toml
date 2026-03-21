@@ -1,0 +1,11 @@
+[package]
+name = "nitro_cache"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+dashmap = "6.0"
+lazy_static = "1.4"
