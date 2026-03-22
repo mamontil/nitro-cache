@@ -6,7 +6,7 @@
   "license": "MIT",
   "authors": [
     {
-      "name": "MamontIL",
+      "name": "mamontil",
       "email": "7882748@gmail.com"
     }
   ],
@@ -17,9 +17,9 @@
     "phpunit/phpunit": "^13.0"
   },
   "autoload": {
-    "classmap": [
-      "src/NitroCache.php"
-    ]
+    "psr-4": {
+      "NitroCache\\": "src/"
+    }
   },
   "autoload-dev": {
     "psr-4": {

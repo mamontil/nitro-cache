@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/src/NitroCache.php';
+require_once 'vendor/autoload.php';
 use NitroCache\Client as NitroCache;
 
 if (isset($_GET['action'])) {

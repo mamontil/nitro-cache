@@ -13,8 +13,7 @@ class NitroCacheTest extends TestCase
 
     protected function setUp(): void
     {
-        // Инициализация перед каждым тестом
-        $this->cache = new NitroCache(64); // 64MB для тестов достаточно
+        $this->cache = new NitroCache(64);
         $this->cache->clear();
     }
 
@@ -34,16 +33,12 @@ class NitroCacheTest extends TestCase
 
     public function testKeyExpiration(): void
     {
-        // Записываем ключ на 1 секунду
         $this->cache->set('expiring_key', 'value', 1);
 
-        // Проверяем, что он есть
         $this->assertEquals('value', $this->cache->get('expiring_key'));
 
-        // Ждем 2 секунды
         sleep(2);
 
-        // Теперь должен быть null
         $this->assertNull($this->cache->get('expiring_key'));
     }
 
