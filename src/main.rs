@@ -52,7 +52,7 @@ fn spawn_pipe_thread(is_first: bool) {
             PIPE_ACCESS_DUPLEX
         };
 
-        let mut payload = Vec::with_capacity(128 * 1024); // Переиспользуемый буфер
+        let mut payload = Vec::with_capacity(128 * 1024);
 
         loop {
             unsafe {
@@ -61,7 +61,7 @@ fn spawn_pipe_thread(is_first: bool) {
                     access_flags,
                     PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
                     PIPE_UNLIMITED_INSTANCES,
-                    256 * 1024, // Увеличенные буферы ОС
+                    256 * 1024,
                     256 * 1024,
                     0,
                     std::ptr::null()
@@ -97,7 +97,7 @@ fn spawn_pipe_thread(is_first: bool) {
                                     }
                                 }
                             },
-                            b'G' => { // GET (Оптимизированный поиск)
+                            b'G' => { // GET
                                 let key_str = String::from_utf8_lossy(&payload);
                                 let mut response = "NULL".as_bytes();
                                 let mut temp_val;

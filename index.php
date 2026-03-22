@@ -10,12 +10,12 @@ if (isset($_GET['action'])) {
         case 'full_bench':
             $count = (int)$_GET['count'];
 
-            // Тест ЗАПИСИ
+            // WRITE Test
             $s1 = microtime(true);
             for ($i = 1; $i <= $count; $i++) { $cache->set("u_$i", "payload_$i", 3600); }
             $dt_w = microtime(true) - $s1;
 
-            // Тест ЧТЕНИЯ
+            // READ Test
             $s2 = microtime(true);
             for ($i = 1; $i <= $count; $i++) { $cache->get("u_$i"); }
             $dt_r = microtime(true) - $s2;
@@ -52,7 +52,7 @@ if (isset($_GET['action'])) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>NitroCache Control Center 🚀</title>
@@ -87,44 +87,44 @@ if (isset($_GET['action'])) {
 
     <div class="grid">
         <div class="card">
-            <h2>📊 Стресс-тест (Пакетный)</h2>
-            <span class="label-sm">Количество записей в итерации:</span>
+            <h2>📊 Batch Stress Test</h2>
+            <span class="label-sm">Number of keys per iteration:</span>
             <input type="number" id="bench-count" value="50000">
-            <button class="btn btn-blue" onclick="runFullBench()">Запустить цикл SET + GET</button>
+            <button class="btn btn-blue" onclick="runFullBench()" id="bench-btn">Run SET + GET Cycle</button>
 
             <div id="bench-res" style="margin-top: 20px;">
-                <div style="color: var(--blue); font-size: 12px; margin-bottom: 5px;">РЕЗУЛЬТАТЫ ЗАПИСИ:</div>
-                <div class="res-row">Скорость: <span id="w-ops" class="val">-</span></div>
-                <div class="res-row">Затрачено времени: <span id="w-time" class="val">-</span></div>
+                <div style="color: var(--blue); font-size: 12px; margin-bottom: 5px;">WRITE RESULTS:</div>
+                <div class="res-row">Throughput: <span id="w-ops" class="val">-</span></div>
+                <div class="res-row">Time Elapsed: <span id="w-time" class="val">-</span></div>
 
-                <div style="color: var(--blue); font-size: 12px; margin-top: 15px; margin-bottom: 5px;">РЕЗУЛЬТАТЫ ЧТЕНИЯ:</div>
-                <div class="res-row">Скорость: <span id="r-ops" class="val">-</span></div>
-                <div class="res-row">Затрачено времени: <span id="r-time" class="val">-</span></div>
+                <div style="color: var(--blue); font-size: 12px; margin-top: 15px; margin-bottom: 5px;">READ RESULTS:</div>
+                <div class="res-row">Throughput: <span id="r-ops" class="val">-</span></div>
+                <div class="res-row">Time Elapsed: <span id="r-time" class="val">-</span></div>
             </div>
         </div>
 
         <div class="card">
-            <h2>🤝 Ручное управление (1 ключ)</h2>
+            <h2>🤝 Manual Control (Single Key)</h2>
             <div style="display: flex; gap: 10px;">
                 <div style="flex: 1;">
-                    <span class="label-sm">Ключ:</span>
+                    <span class="label-sm">Key:</span>
                     <input type="text" id="m-key" placeholder="user_123">
                 </div>
                 <div style="flex: 1;">
-                    <span class="label-sm">Значение:</span>
+                    <span class="label-sm">Value:</span>
                     <input type="text" id="m-val" placeholder="Hello World">
                 </div>
             </div>
-            <button class="btn btn-green" onclick="manualSet()">Записать данные</button>
+            <button class="btn btn-green" onclick="manualSet()">Store Data</button>
 
             <div style="margin-top: 30px; border-top: 1px solid var(--border); padding-top: 20px;">
-                <span class="label-sm">Введите ключ для поиска:</span>
+                <span class="label-sm">Enter key to fetch:</span>
                 <input type="text" id="g-key" placeholder="user_123">
-                <button class="btn" style="background: #8957e5; color: white;" onclick="manualGet()">Получить значение</button>
+                <button class="btn" style="background: #8957e5; color: white;" onclick="manualGet()">Retrieve Value</button>
 
                 <div id="get-res" style="margin-top: 15px; padding: 15px; background: #0d1117; border-radius: 8px;">
                     <div class="res-row" style="border:none;">
-                        <span>Результат:</span>
+                        <span>Result:</span>
                         <span id="manual-val" style="color: white; font-weight: bold;">...</span>
                     </div>
                     <div class="res-row" style="border:none; color: var(--grey); font-size: 11px;">
@@ -134,7 +134,7 @@ if (isset($_GET['action'])) {
                 </div>
             </div>
 
-            <button class="btn btn-clear" onclick="clearCache()">Сбросить всё (Clear)</button>
+            <button class="btn btn-clear" onclick="clearCache()">Flush Cache (Clear)</button>
         </div>
     </div>
 </div>
@@ -146,24 +146,24 @@ if (isset($_GET['action'])) {
 
   async function runFullBench() {
     const count = document.getElementById('bench-count').value;
-    const btn = event.target;
-    btn.innerText = "⏳ ВЫПОЛНЕНИЕ...";
+    const btn = document.getElementById('bench-btn');
+    btn.innerText = "⏳ EXECUTING...";
     btn.disabled = true;
 
     try {
       const res = await fetch(`?action=full_bench&count=${count}`).then(r => r.json());
 
       document.getElementById('w-ops').innerText = res.w_ops.toLocaleString() + " ops/s";
-      document.getElementById('w-time').innerText = res.w_time + " сек";
+      document.getElementById('w-time').innerText = res.w_time + " sec";
 
       document.getElementById('r-ops').innerText = res.r_ops.toLocaleString() + " ops/s";
-      document.getElementById('r-time').innerText = res.r_time + " сек";
+      document.getElementById('r-time').innerText = res.r_time + " sec";
 
       updateStats(res.stats);
     } catch(e) {
       console.error(e);
     } finally {
-      btn.innerText = "Запустить цикл SET + GET";
+      btn.innerText = "Run SET + GET Cycle";
       btn.disabled = false;
     }
   }
@@ -173,7 +173,7 @@ if (isset($_GET['action'])) {
     const v = document.getElementById('m-val').value;
     if(!k) return;
     const res = await fetch(`?action=manual_set&k=${k}&v=${v}`).then(r => r.json());
-    document.getElementById('manual-val').innerText = "OK (Записано)";
+    document.getElementById('manual-val').innerText = "OK (Stored)";
     document.getElementById('manual-time').innerText = res.time + " μs";
     updateStats(res.stats);
   }
@@ -187,6 +187,7 @@ if (isset($_GET['action'])) {
   }
 
   async function clearCache() {
+    if(!confirm("Are you sure you want to flush the entire cache?")) return;
     const res = await fetch('?action=clear').then(r => r.json());
     document.getElementById('manual-val').innerText = "CLEARED";
     document.getElementById('w-ops').innerText = "-";
@@ -196,9 +197,8 @@ if (isset($_GET['action'])) {
     updateStats(res.stats);
   }
 
-  // Запрос статов при загрузке
+  // Initial stats fetch
   fetch('?action=manual_get&k=ping').then(r => r.json()).then(d => {
-    // Просто фоновый запрос для получения RAM
     fetch('?action=manual_set&k=init&v=1').then(r => r.json()).then(d2 => updateStats(d2.stats));
   });
 </script>

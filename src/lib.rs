@@ -47,7 +47,6 @@ pub extern "C" fn cache_set(key: *const c_char, value: *const c_char, ttl_sec: u
     let k = unsafe { CStr::from_ptr(key) }.to_string_lossy();
     let v = unsafe { CStr::from_ptr(value) }.to_string_lossy();
 
-    // Сериализуем только для SET, так как тут 3 поля
     if let Ok(payload) = bincode::serialize(&(k.into_owned(), v.into_owned(), ttl_sec)) {
         if let Some(mut conn) = get_pipe() {
             let mut msg = Vec::with_capacity(payload.len() + 5);
