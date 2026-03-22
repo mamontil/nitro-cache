@@ -1,119 +1,93 @@
-use dashmap::DashMap;
-use lazy_static::lazy_static;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::io::{Read, Write, BufReader, BufWriter};
+use std::fs::OpenOptions;
+use std::cell::RefCell;
 
-// Структура для хранения данных
-struct CacheEntry {
-    value: String,
-    expires_at: u64,
-    last_accessed: AtomicUsize, // Для LRU: храним время последнего доступа
+const PIPE_NAME: &str = r"\\.\pipe\nitro_pipe";
+
+struct PipeConnection {
+    reader: BufReader<std::fs::File>,
+    writer: BufWriter<std::fs::File>,
 }
 
-// Статистика и лимиты (в байтах)
-static MEMORY_USAGE: AtomicUsize = AtomicUsize::new(0);
-static MAX_MEMORY: AtomicUsize = AtomicUsize::new(1024 * 1024 * 100); // 100MB по умолчанию
-
-lazy_static! {
-    static ref CACHE: DashMap<String, CacheEntry> = DashMap::new();
+thread_local! {
+    static PIPE: RefCell<Option<PipeConnection>> = RefCell::new(None);
 }
 
-// Вспомогательная функция для получения текущего времени
-fn get_now() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
-}
-
-// Настройка лимита памяти из PHP
-#[unsafe(no_mangle)]
-pub extern "C" fn set_max_memory(bytes: usize) {
-    MAX_MEMORY.store(bytes, Ordering::SeqCst);
-}
-
-// ВНУТРЕННЯЯ ФУНКЦИЯ: Очистка места (LRU)
-// Если памяти не хватает, удаляем самый старый элемент
-fn evict_if_needed(needed_size: usize) {
-    let max = MAX_MEMORY.load(Ordering::SeqCst);
-
-    // Пытаемся освободить место, пока его не станет достаточно
-    while MEMORY_USAGE.load(Ordering::SeqCst) + needed_size > max {
-        let mut oldest_key: Option<String> = None;
-        let mut oldest_time = usize::MAX;
-
-        // Выбираем кандидата на удаление (проверяем часть кэша для скорости)
-        // Мы не блокируем весь кэш, а берем первые 20 элементов для анализа
-        for r in CACHE.iter().take(20) {
-            let last = r.value().last_accessed.load(Ordering::Relaxed);
-            if last < oldest_time {
-                oldest_time = last;
-                oldest_key = Some(r.key().clone());
+fn get_pipe() -> Option<PipeConnection> {
+    PIPE.with(|cell| {
+        let mut opt = cell.borrow_mut();
+        if opt.is_none() {
+            if let Ok(file) = OpenOptions::new().read(true).write(true).open(PIPE_NAME) {
+                if let Ok(read_clone) = file.try_clone() {
+                    *opt = Some(PipeConnection {
+                        reader: BufReader::with_capacity(256 * 1024, read_clone),
+                        writer: BufWriter::with_capacity(256 * 1024, file),
+                    });
+                }
             }
         }
-
-        if let Some(key) = oldest_key {
-            if let Some((k, entry)) = CACHE.remove(&key) {
-                let size = k.len() + entry.value.len();
-                MEMORY_USAGE.fetch_sub(size, Ordering::SeqCst);
+        if let Some(conn) = opt.as_ref() {
+            if let (Ok(r), Ok(w)) = (conn.reader.get_ref().try_clone(), conn.writer.get_ref().try_clone()) {
+                return Some(PipeConnection {
+                    reader: BufReader::new(r),
+                    writer: BufWriter::new(w),
+                });
             }
-        } else {
-            break; // Если кэш пуст, выходим
         }
-    }
+        None
+    })
 }
 
-// Запись данных
 #[unsafe(no_mangle)]
-pub extern "C" fn cache_set(key: *const c_char, value: *const c_char, ttl_sec: u64) {
-    if key.is_null() || value.is_null() { return; }
+pub extern "C" fn cache_set(key: *const c_char, value: *const c_char, ttl_sec: u64) -> bool {
+    if key.is_null() || value.is_null() { return false; }
 
-    let c_str_key = unsafe { CStr::from_ptr(key) };
-    let c_str_val = unsafe { CStr::from_ptr(value) };
+    let k = unsafe { CStr::from_ptr(key) }.to_string_lossy();
+    let v = unsafe { CStr::from_ptr(value) }.to_string_lossy();
 
-    if let (Ok(k), Ok(v)) = (c_str_key.to_str(), c_str_val.to_str()) {
-        let now = get_now();
-        let new_size = k.len() + v.len();
+    // Сериализуем только для SET, так как тут 3 поля
+    if let Ok(payload) = bincode::serialize(&(k.into_owned(), v.into_owned(), ttl_sec)) {
+        if let Some(mut conn) = get_pipe() {
+            let mut msg = Vec::with_capacity(payload.len() + 5);
+            msg.push(b'S');
+            msg.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+            msg.extend_from_slice(&payload);
 
-        // 1. Освобождаем место, если нужно (LRU логика)
-        evict_if_needed(new_size);
-
-        // 2. Умный пересчет: если обновляем существующий ключ
-        if let Some(old_entry) = CACHE.get(k) {
-            let old_size = k.len() + old_entry.value.len();
-            MEMORY_USAGE.fetch_sub(old_size, Ordering::SeqCst);
+            if conn.writer.write_all(&msg).is_ok() && conn.writer.flush().is_ok() {
+                let mut ack = [0u8; 1];
+                if conn.reader.read_exact(&mut ack).is_ok() {
+                    return ack[0] == 1;
+                }
+            }
         }
-
-        // 3. Сохранение
-        MEMORY_USAGE.fetch_add(new_size, Ordering::SeqCst);
-        CACHE.insert(k.to_string(), CacheEntry {
-            value: v.to_string(),
-            expires_at: now + ttl_sec,
-            last_accessed: AtomicUsize::new(now as usize),
-        });
     }
+    false
 }
 
-// Получение данных
 #[unsafe(no_mangle)]
 pub extern "C" fn cache_get(key: *const c_char) -> *mut c_char {
     if key.is_null() { return std::ptr::null_mut(); }
-    let c_str_key = unsafe { CStr::from_ptr(key) };
+    let k = unsafe { CStr::from_ptr(key) }.to_bytes();
 
-    if let Ok(k) = c_str_key.to_str() {
-        let now = get_now();
+    if let Some(mut conn) = get_pipe() {
+        let mut msg = Vec::with_capacity(k.len() + 5);
+        msg.push(b'G');
+        msg.extend_from_slice(&(k.len() as u32).to_le_bytes());
+        msg.extend_from_slice(k);
 
-        if let Some(entry) = CACHE.get(k) {
-            if entry.expires_at > now {
-                // ОБНОВЛЯЕМ время доступа (для LRU)
-                entry.last_accessed.store(now as usize, Ordering::Relaxed);
-
-                return CString::new(entry.value.as_str()).unwrap().into_raw();
-            } else {
-                // Ленивая очистка протухших данных
-                let size = k.len() + entry.value.len();
-                drop(entry);
-                if CACHE.remove(k).is_some() {
-                    MEMORY_USAGE.fetch_sub(size, Ordering::SeqCst);
+        if conn.writer.write_all(&msg).is_ok() && conn.writer.flush().is_ok() {
+            let mut resp_len_buf = [0u8; 4];
+            if conn.reader.read_exact(&mut resp_len_buf).is_ok() {
+                let resp_len = u32::from_le_bytes(resp_len_buf) as usize;
+                if resp_len > 0 {
+                    let mut resp_data = vec![0u8; resp_len];
+                    if conn.reader.read_exact(&mut resp_data).is_ok() {
+                        let s = String::from_utf8_lossy(&resp_data);
+                        if s == "NULL" { return std::ptr::null_mut(); }
+                        if let Ok(c_str) = CString::new(s.into_owned()) { return c_str.into_raw(); }
+                    }
                 }
             }
         }
@@ -121,28 +95,53 @@ pub extern "C" fn cache_get(key: *const c_char) -> *mut c_char {
     std::ptr::null_mut()
 }
 
-// Остальные функции без изменений (они и так профессиональные)
 #[unsafe(no_mangle)]
-pub extern "C" fn cache_remove(key: *const c_char) {
-    if key.is_null() { return; }
-    let c_str_key = unsafe { CStr::from_ptr(key) };
-    if let Ok(k) = c_str_key.to_str() {
-        if let Some((_, entry)) = CACHE.remove(k) {
-            let size = k.len() + entry.value.len();
-            MEMORY_USAGE.fetch_sub(size, Ordering::SeqCst);
-        }
+pub extern "C" fn cache_clear() {
+    if let Some(mut conn) = get_pipe() {
+        let _ = conn.writer.write_all(&[b'C', 0, 0, 0, 0]);
+        let _ = conn.writer.flush();
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn set_max_memory(bytes: usize) {
+    if let Some(mut conn) = get_pipe() {
+        let payload = bytes.to_le_bytes();
+        let mut msg = vec![b'L'];
+        msg.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        msg.extend_from_slice(&payload);
+        let _ = conn.writer.write_all(&msg);
+        let _ = conn.writer.flush();
     }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn get_memory_usage() -> usize {
-    MEMORY_USAGE.load(Ordering::SeqCst)
+    if let Some(mut conn) = get_pipe() {
+        let _ = conn.writer.write_all(&[b'M', 0, 0, 0, 0]);
+        let _ = conn.writer.flush();
+        let mut res = [0u8; 8];
+        if conn.reader.read_exact(&mut res).is_ok() { return usize::from_le_bytes(res); }
+    }
+    0
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn free_string(s: *mut c_char) {
-    unsafe {
-        if s.is_null() { return; }
-        let _ = CString::from_raw(s);
+    unsafe { if !s.is_null() { let _ = CString::from_raw(s); } }
+}
+
+#[unsafe(no_mangle)] pub extern "C" fn cache_remove(key: *const c_char) {
+    if key.is_null() { return; }
+    let k = unsafe { CStr::from_ptr(key) }.to_bytes();
+    if let Some(mut conn) = get_pipe() {
+        let mut msg = Vec::with_capacity(k.len() + 5);
+        msg.push(b'R');
+        msg.extend_from_slice(&(k.len() as u32).to_le_bytes());
+        msg.extend_from_slice(k);
+        let _ = conn.writer.write_all(&msg);
+        let _ = conn.writer.flush();
     }
 }
+
+#[unsafe(no_mangle)] pub extern "C" fn init_persistent_storage() {}

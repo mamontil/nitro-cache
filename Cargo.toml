@@ -1,11 +1,24 @@
 [package]
 name = "nitro_cache"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [lib]
+name = "nitro_cache"
 crate-type = ["cdylib"]
+
+[[bin]]
+name = "nitro_server"
+path = "src/main.rs"
 
 [dependencies]
 dashmap = "6.0"
 lazy_static = "1.4"
+serde = { version = "1.0", features = ["derive"] }
+bincode = "1.3"
+windows-sys = { version = "0.52", features = [
+    "Win32_Storage_FileSystem",
+    "Win32_System_Pipes",
+    "Win32_Foundation",
+    "Win32_System_IO",
+] }

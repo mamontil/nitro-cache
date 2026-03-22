@@ -1,6 +1,12 @@
-/target
+/vendor/
+/target/
+composer.lock
 Cargo.lock
 .idea
 .vscode
 *.pdb
 *.d
+*.log
+*.dll
+*.exe
+.phpunit.result.cache
