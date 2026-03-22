@@ -104,3 +104,21 @@ cargo build --release
 
 ## 📜 Лицензия
 Проект распространяется под лицензией MIT. Свободно для коммерческого и личного использования.
+
+---
+
+## 💖 Support the Project
+
+If **NitroCache** helps you save server resources and speed up your applications, consider supporting its development. Every donation helps me spend more time improving the engine, adding Linux support, and building new features.
+
+### Donate via USDT (TRC20)
+
+**[📲 Click here to open in Trust Wallet](https://link.trustwallet.com/send?coin=195&address=TE1LGAzYWNSBdxB5JVck8JuvevUdpz7vG7)**
+
+Or scan the QR code below:
+
+<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=TE1LGAzYWNSBdxB5JVck8JuvevUdpz7vG7" width="200" height="200" alt="USDT TRC20 QR Code" />
+
+**Wallet Address:** `TE1LGAzYWNSBdxB5JVck8JuvevUdpz7vG7`
+
+---
