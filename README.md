@@ -24,25 +24,28 @@
 | **SET** (Запись) | **~61,500** | 8.11 сек | **~16.2 μs** |
 | **GET** (Чтение) | **~57,400** | 8.70 сек | **~17.4 μs** |
 
-## 🛠 Требования и Установка
+## 📦 Installation (Stable Way)
 
-1. Убедитесь, что расширение **FFI** включено в вашем `php.ini` (`ffi.enable=on`).
-2. Добавьте этот репозиторий в ваш `composer.json` (используйте тип `vcs` и укажите ссылку на ваш GitHub).
-```json
-"repositories": [
-    {
-        "type": "vcs",
-        "url": "[https://github.com/mamontil/nitro-cache](https://github.com/mamontil/nitro-cache)"
-    }
-],
-"require": {
-    "mamontil/nitro-cache": "dev-main"
-}
+1. Add the Repository
+   Run this command in your terminal. It will automatically update your composer.json with the custom repository link:
+```bash
+composer config repositories.nitro-cache vcs https://github.com/mamontil/nitro-cache
 ```
-4. Выполните команду `composer update`.
-5. Скачайте бинарные файлы из раздела **Releases**:
-    * Поместите `nitro_cache.dll` в папку `bin/` вашего проекта.
-    * Запустите `nitro_cache_server.exe` (он должен работать в фоне).
+2. Configure Stability Settings
+   Since the package is currently in development (dev-main), you need to allow Composer to install dev-versions:
+```bash
+composer config minimum-stability dev
+composer config prefer-stable true
+```
+3. Install the Package
+   Use the require command to add NitroCache to your project dependencies without affecting other packages:
+```bash
+composer require mamontil/nitro-cache:dev-main
+```
+4. Setup Binaries & Server
+    * Enable FFI: Ensure the FFI extension is enabled in your php.ini (ffi.enable=on and extension=ffi).
+    * Locate Binaries: Go to vendor/mamontil/nitro-cache/bin/.
+    * Run the Server: Execute nitro_server.exe (it must remain running in the background to manage shared memory).
 
 ## 🚀 Быстрый старт
 

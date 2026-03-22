@@ -7,6 +7,4 @@ Cargo.lock
 *.pdb
 *.d
 *.log
-*.dll
-*.exe
 .phpunit.result.cache
