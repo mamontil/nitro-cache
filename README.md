@@ -51,7 +51,7 @@ composer require mamontil/nitro-cache:dev-main
 
 ```php
 <?php
-require_once 'vendor/autoload.php';
+require_once __DIR__ . '/vendor/autoload.php';
 
 use NitroCache\Client as NitroCache;
 

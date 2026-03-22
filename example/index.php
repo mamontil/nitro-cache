@@ -5,7 +5,22 @@ use NitroCache\Client as NitroCache;
 
 if (isset($_GET['action'])) {
     header('Content-Type: application/json');
-    $cache = new NitroCache(512);
+
+    try {
+        $cache = new NitroCache(512);
+
+        $cache->set('_ping', '1', 5);
+        if ($cache->get('_ping') !== '1') {
+            throw new \Exception("Engine not responding");
+        }
+
+        $currentStats = $cache->getStats();
+    } catch (\Throwable $e) {
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode(['error' => 'NitroCache Server Connection Failed: ' . $e->getMessage()]);
+        exit;
+    }
 
     switch ($_GET['action']) {
         case 'full_bench':
@@ -141,8 +156,22 @@ if (isset($_GET['action'])) {
 </div>
 
 <script>
+  // Helper to handle fetch errors
+  async function safeFetch(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+      const data = await response.json();
+      alert("⚠️ Connection Error: " + (data.error || "Server is offline"));
+      throw new Error(data.error);
+    }
+    return response.json();
+  }
+
   async function updateStats(stats) {
-    document.getElementById('ram-usage').innerText = stats.usage_mb;
+    if(stats && stats.usage_mb !== undefined) {
+      document.getElementById('ram-usage').innerText = parseFloat(stats.usage_mb).toFixed(2);
+      document.getElementById('ram-usage').style.color = 'blue';
+    }
   }
 
   async function runFullBench() {
@@ -152,7 +181,7 @@ if (isset($_GET['action'])) {
     btn.disabled = true;
 
     try {
-      const res = await fetch(`?action=full_bench&count=${count}`).then(r => r.json());
+      const res = await safeFetch(`?action=full_bench&count=${count}`);
 
       document.getElementById('w-ops').innerText = res.w_ops.toLocaleString() + " ops/s";
       document.getElementById('w-time').innerText = res.w_time + " sec";
@@ -173,35 +202,48 @@ if (isset($_GET['action'])) {
     const k = document.getElementById('m-key').value;
     const v = document.getElementById('m-val').value;
     if(!k) return;
-    const res = await fetch(`?action=manual_set&k=${k}&v=${v}`).then(r => r.json());
-    document.getElementById('manual-val').innerText = "OK (Stored)";
-    document.getElementById('manual-time').innerText = res.time + " μs";
-    updateStats(res.stats);
+    try {
+      const res = await safeFetch(`?action=manual_set&k=${k}&v=${v}`);
+      document.getElementById('manual-val').innerText = "OK (Stored)";
+      document.getElementById('manual-time').innerText = res.time + " μs";
+      updateStats(res.stats);
+    } catch(e) {}
   }
 
   async function manualGet() {
     const k = document.getElementById('g-key').value;
     if(!k) return;
-    const res = await fetch(`?action=manual_get&k=${k}`).then(r => r.json());
-    document.getElementById('manual-val').innerText = res.val;
-    document.getElementById('manual-time').innerText = res.time + " μs";
+    try {
+      const res = await safeFetch(`?action=manual_get&k=${k}`);
+      document.getElementById('manual-val').innerText = res.val;
+      document.getElementById('manual-time').innerText = res.time + " μs";
+    } catch(e) {}
   }
 
   async function clearCache() {
     if(!confirm("Are you sure you want to flush the entire cache?")) return;
-    const res = await fetch('?action=clear').then(r => r.json());
-    document.getElementById('manual-val').innerText = "CLEARED";
-    document.getElementById('w-ops').innerText = "-";
-    document.getElementById('w-time').innerText = "-";
-    document.getElementById('r-ops').innerText = "-";
-    document.getElementById('r-time').innerText = "-";
-    updateStats(res.stats);
+    try {
+      const res = await safeFetch('?action=clear');
+      document.getElementById('manual-val').innerText = "CLEARED";
+      document.getElementById('w-ops').innerText = "-";
+      document.getElementById('r-ops').innerText = "-";
+
+      updateStats(res.stats);
+    } catch(e) {
+      console.error("Clear failed", e);
+    }
   }
 
-  // Initial stats fetch
-  fetch('?action=manual_get&k=ping').then(r => r.json()).then(d => {
-    fetch('?action=manual_set&k=init&v=1').then(r => r.json()).then(d2 => updateStats(d2.stats));
-  });
+  // Initial stats fetch - safe check
+  window.onload = async () => {
+    try {
+      const res = await safeFetch('?action=manual_get&k=ping');
+      updateStats(res.stats);
+    } catch(e) {
+      document.getElementById('ram-usage').innerText = "OFFLINE";
+      document.getElementById('ram-usage').style.color = "#f85149";
+    }
+  };
 </script>
 
 </body>
