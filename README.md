@@ -98,7 +98,7 @@ cargo build --release
 
 * nitro_cache_server.exe — The background process for memory persistence.
 
-## 📂 Структура проекта
+## 📂 Project Structure
 * src/ — PSR-4 compliant PHP client source code.
 
 * bin/ — Pre-compiled binaries (DLL/EXE) for Windows.
@@ -107,7 +107,7 @@ cargo build --release
 
 * tests/ — PHPUnit integration tests.
 
-## 📜 Лицензия
+## 📜 License
 * This project is licensed under the MIT License. It is free for both personal and commercial use.
 
 ---
