@@ -26,22 +26,23 @@
 
 ## 📦 Installation (Stable Method)
 
-1.  **Add the Repository** Run this command to update your `composer.json` with the custom repository link:
+1. **Add the Repository** Run this command to update your `composer.json` with the custom repository link:
     ```bash
     composer config repositories.nitro-cache vcs [https://github.com/mamontil/nitro-cache](https://github.com/mamontil/nitro-cache)
     ```
 
-2.  **Configure Stability Settings** Since the package is currently in development (`dev-main`), allow Composer to install dev versions:
+2. **Configure Stability Settings** Since the package is currently in development (`dev-main`), allow Composer to install dev versions:
     ```bash
     composer config minimum-stability dev
     composer config prefer-stable true
     ```
 
-3.  **Install the Package** ```bash
+3. **Install the Package**
+    ```bash
     composer require mamontil/nitro-cache:dev-main
     ```
 
-4.  **Setup Binaries & Server**
+5. **Setup Binaries & Server**
    * **Enable FFI:** Ensure the FFI extension is enabled in your `php.ini` (`ffi.enable=on` and `extension=ffi`).
    * **Locate Binaries:** Find the core files in `vendor/mamontil/nitro-cache/bin/`.
    * **Run the Engine:** Execute `nitro_server.exe`. It must remain running in the background to manage the shared memory segment.
