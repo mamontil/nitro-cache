@@ -15,39 +15,38 @@
 * **Persistent:** Data stays in memory even when the PHP process ends.
 * **Memory Managed:** Strict RAM limits (e.g., 512MB) enforced by the Rust core.
 
-## 📊 Бенчмарки (500,000 ключей)
+## 📊 Benchmarks (500,000 Keys)
 
-Тестирование проводилось на PHP 8.4 (Windows 10, SSD, 16GB RAM).
+*Test Environment: PHP 8.4, Windows 10, SSD, 16GB RAM.*
 
-| Операция | Скорость (ops/s) | Время (500k ключей) | Latency (1 ключ) |
+| Operation | Throughput (ops/s) | Total Time (500k keys) | Latency (per key) |
 | :--- | :--- | :--- | :--- |
-| **SET** (Запись) | **~61,500** | 8.11 сек | **~16.2 μs** |
-| **GET** (Чтение) | **~57,400** | 8.70 сек | **~17.4 μs** |
+| **SET** (Write) | **~61,500** | 8.11s | **~16.2 μs** |
+| **GET** (Read) | **~57,400** | 8.70s | **~17.4 μs** |
 
-## 📦 Installation (Stable Way)
+## 📦 Installation (Stable Method)
 
-1. Add the Repository
-   Run this command in your terminal. It will automatically update your composer.json with the custom repository link:
-```bash
-composer config repositories.nitro-cache vcs https://github.com/mamontil/nitro-cache
-```
-2. Configure Stability Settings
-   Since the package is currently in development (dev-main), you need to allow Composer to install dev-versions:
-```bash
-composer config minimum-stability dev
-composer config prefer-stable true
-```
-3. Install the Package
-   Use the require command to add NitroCache to your project dependencies without affecting other packages:
-```bash
-composer require mamontil/nitro-cache:dev-main
-```
-4. Setup Binaries & Server
-    * Enable FFI: Ensure the FFI extension is enabled in your php.ini (ffi.enable=on and extension=ffi).
-    * Locate Binaries: Go to vendor/mamontil/nitro-cache/bin/.
-    * Run the Server: Execute nitro_server.exe (it must remain running in the background to manage shared memory).
+1.  **Add the Repository** Run this command to update your `composer.json` with the custom repository link:
+    ```bash
+    composer config repositories.nitro-cache vcs [https://github.com/mamontil/nitro-cache](https://github.com/mamontil/nitro-cache)
+    ```
 
-## 🚀 Быстрый старт
+2.  **Configure Stability Settings** Since the package is currently in development (`dev-main`), allow Composer to install dev versions:
+    ```bash
+    composer config minimum-stability dev
+    composer config prefer-stable true
+    ```
+
+3.  **Install the Package** ```bash
+    composer require mamontil/nitro-cache:dev-main
+    ```
+
+4.  **Setup Binaries & Server**
+   * **Enable FFI:** Ensure the FFI extension is enabled in your `php.ini` (`ffi.enable=on` and `extension=ffi`).
+   * **Locate Binaries:** Find the core files in `vendor/mamontil/nitro-cache/bin/`.
+   * **Run the Engine:** Execute `nitro_server.exe`. It must remain running in the background to manage the shared memory segment.
+
+## 🚀 Quick Start
 
 ```php
 <?php
@@ -55,55 +54,60 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 use NitroCache\Client as NitroCache;
 
-// Инициализация с лимитом 512MB
-$cache = new NitroCache(maxMemoryMb: 512);
+try {
+    // Initialize with a 512MB memory limit
+    $cache = new NitroCache(maxMemoryMb: 512);
 
-// Запись данных (Ключ, Значение, TTL в секундах)
-$cache->set('user:123', '{"id":123, "name":"Ilya", "role":"admin"}', 3600);
+    // Set Data (Key, Value, TTL in seconds)
+    $cache->set('user:123', '{"id":123, "name":"Ilya", "role":"admin"}', 3600);
 
-// Мгновенное чтение
-$userData = $cache->get('user:123');
+    // Instant Retrieval
+    $userData = $cache->get('user:123');
 
-if ($userData) {
-    echo "Данные из NitroCache: " . $userData;
+    if ($userData) {
+        echo "Data from NitroCache: " . $userData;
+    }
+
+    // Monitor Resource Usage
+    $stats = $cache->getStats();
+    echo "Current Memory Usage: " . $stats['usage_mb'] . " MB";
+
+} catch (\Throwable $e) {
+    echo "Connection Error: " . $e->getMessage();
 }
-
-// Получение статистики
-$stats = $cache->getStats();
-echo "Memory usage: " . $stats['usage_mb'] . " MB";
 ```
 
-## 🧪 Тестирование
-Библиотека поставляется с полным набором Unit-тестов (PHPUnit). Для запуска:
+## 🧪 Testing
+* The library includes a comprehensive PHPUnit test suite. To run the tests:
 
 ```bash
 vendor/bin/phpunit --bootstrap vendor/autoload.php tests
 ```
-## 🦀 Сборка из исходников (Rust)
-* Если вы хотите собрать ядро самостоятельно:
+## 🦀 Building from Source (Rust Core)
+* If you wish to compile the core engine manually:
 
-1. Установите Rust (Cargo).
-2. Выполните сборку в режиме release:
+1. Install Rust (Cargo).
+2. Build in release mode:
 ```bash
 cargo build --release
 ```
-3. Файлы появятся в директории target/release/:
+3. The binaries will be generated in target/release/:
 
-* nitro_cache.dll — библиотека для PHP.
+* nitro_cache.dll — The shared library for PHP FFI.
 
-* nitro_cache_server.exe — серверный процесс для хранения данных.
+* nitro_cache_server.exe — The background process for memory persistence.
 
 ## 📂 Структура проекта
-* src/ — Исходный код PHP-клиента (PSR-4).
+* src/ — PSR-4 compliant PHP client source code.
 
-* bin/ — Рекомендуемое место для бинарных файлов (DLL/EXE).
+* bin/ — Pre-compiled binaries (DLL/EXE) for Windows.
 
-* rust_src/ — Исходный код ядра на Rust.
+* rust_src/ — Rust core source code (Shared Memory logic).
 
-* tests/ — Юнит-тесты PHPUnit.
+* tests/ — PHPUnit integration tests.
 
 ## 📜 Лицензия
-Проект распространяется под лицензией MIT. Свободно для коммерческого и личного использования.
+* This project is licensed under the MIT License. It is free for both personal and commercial use.
 
 ---
 
